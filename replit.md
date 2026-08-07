@@ -1,59 +1,48 @@
-# Notibot — Discord Selfbot → Official Bot Forwarder
+# Notibot
 
-A Vietnamese Discord bot for the **Play Together** game community. It reads messages from a selfbot account (user account) on source channels and forwards them via an official Discord bot to target channels. Includes an invite-tracking system, reminder embeds, and a slash-command setup panel.
+A Discord selfbot → official bot forwarder for **Play Together Customizer**.
+
+It reads messages from a selfbot account and forwards them through an official Discord bot, with support for usage limits, invite tracking, and role-based access.
 
 ## Stack
 
 - **Runtime:** Node.js (CommonJS)
-- **Discord selfbot:** `discord.js-selfbot-v13`
-- **Official bot:** `discord.js` v13
-- **Database:** MongoDB via Mongoose
-- **Package manager:** pnpm (workspace package `@workspace/notibot`)
+- **Discord:** `discord.js-selfbot-v13` (selfbot) + `discord.js v13` (official bot)
+- **Database:** MongoDB via Mongoose (usage limits, invite records, creators)
 
 ## How to run
 
-The workflow **Notibot** starts the bot automatically:
+The `Notibot` workflow runs automatically:
 
 ```
 pnpm --filter @workspace/notibot run dev
 ```
 
-## Required secrets
+This executes `node index.js` inside `bots/notibot/`.
 
-Set these in Replit Secrets before starting:
+## Required secrets
 
 | Secret | Description |
 |---|---|
-| `DISCORD_TOKEN` | Discord user account token (selfbot) |
-| `BOT_TOKEN` | Official Discord bot token |
+| `DISCORD_TOKEN` | Selfbot account token (reads source channels) |
+| `BOT_TOKEN` | Official Discord bot token (sends to target channels) |
 | `MONGODB_URI` | MongoDB connection string |
-
-Optional:
-- `ADMIN_IDS` — comma-separated Discord user IDs for bot admins (defaults to a hardcoded ID in `setup.js`)
 
 ## Configuration
 
-Edit `bots/notibot/config.json` to set:
+Channel mappings and bot behaviour are set in `bots/notibot/config.json`.
 
-- `channelMappings` — source → target channel pairs (with optional webhook URLs), typed as `seeds`, `weather`, `tools`, or `refresh`
-- `targetGuildId` — your Discord server ID
-- `setupChannelId` — channel where the slash-command setup panel is posted
-- Other flags: `ignoreBots`, `preventPings`, `messageDelay`, etc.
-
-Edit `bots/notibot/emojis.json` to customize seed/weather/tool emojis and role IDs without touching the main code.
-
-## Project structure
+## Project layout
 
 ```
-bots/notibot/
-  index.js          # Main bot logic
-  setup.js          # Token/admin config (reads from env)
-  db.js             # MongoDB connection
-  config.json       # Channel mappings and server config
-  emojis.json       # Emoji and role ID mappings
-  models/           # Mongoose models (Creator, JoinRecord, UserInvite)
-  listeners/        # Event listeners (inviteSystem, reminderEmbed)
-  scripts/          # Utility scripts (reset-channel, send-rules)
+bots/notibot/        # Main bot code
+  index.js           # Entry point
+  setup.js           # Token/admin config (reads from env)
+  db.js              # MongoDB connection
+  config.json        # Channel mappings & settings
+  models/            # Mongoose models
+  listeners/         # Event listeners (invites, reminders)
+artifacts/api-server/ # Express API server (separate artifact)
 ```
 
 ## User preferences
