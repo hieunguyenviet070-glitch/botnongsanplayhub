@@ -233,7 +233,7 @@ function getFallbackEmoji(name) {
 function mapCustomEmojis(text, sourceMessage) {
   if (typeof text !== 'string') return text;
   const sourceGuildId = sourceMessage && sourceMessage.guild ? sourceMessage.guild.id : null;
-  return text.replace(/<(a?):([a-zA-Z0-9_~]+):([0-9]+)>/g, (match, animated, name, id) => {
+  const resolveEmoji = (match, name) => {
     if (emojiConfig.emojis && emojiConfig.emojis[name]) {
       const configuredEmoji = emojiConfig.emojis[name];
       if (configuredEmoji && !configuredEmoji.includes('ĐIỀN_ID_EMOJI_CỦA_BẠN_VÀO_ĐÂY')) {
@@ -249,7 +249,17 @@ function mapCustomEmojis(text, sourceMessage) {
       return fallback;
     }
     return match;
+  };
+  // Discord custom emoji tags already containing an ID.
+  let mapped = text.replace(/<(a?):([a-zA-Z0-9_~]+):([0-9]+)>/g, (match, animated, name) => {
+    return resolveEmoji(match, name);
   });
+  // Some source bots send the emoji token as plain text, e.g.
+  // ":icon_weather_Normal_Night:". Resolve it from emojis.json as well.
+  mapped = mapped.replace(/:([a-zA-Z0-9_~]+):/g, (match, name) => {
+    return resolveEmoji(match, name);
+  });
+  return mapped;
 }
 function getEndTimeStr(startTimeStr, minutes = 5) {
   const [hh, mm] = startTimeStr.split(':').map(Number);
