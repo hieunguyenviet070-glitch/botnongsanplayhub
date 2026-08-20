@@ -2486,8 +2486,10 @@ botClient.on('guildMemberRemove', async (member) => inviteSystem.handleGuildMemb
 client.on('messageCreate', async (message) => {
   const mapping = config.channelMappings.find(m => m.sourceChannelId === message.channel.id);
   if (!mapping) return;
+  // Chỉ xử lý tin nhắn do bot khác gửi ở các kênh nguồn.
+  // Tin nhắn từ người dùng phải bị bỏ qua hoàn toàn, bất kể ignoreBots.
+  if (!message.author.bot) return;
   if (config.ignoreSelf && message.author.id === client.user.id) return;
-  if (config.ignoreBots && message.author.bot) return;
   try {
     if (config.messageDelay && config.messageDelay > 0) {
       await sleep(config.messageDelay);
@@ -2513,7 +2515,10 @@ process.stdin.on('data', async (data) => {
         }
         const messages = await sourceChannel.messages.fetch({ limit: 20 });
         const lastMsg = messages.find(m => {
-          if (config.ignoreBots && m.author.bot) return false;
+          // Lệnh test cũng phải tuân thủ bộ lọc giống messageCreate:
+          // chỉ chọn tin nhắn do bot gửi, không chọn tin nhắn người dùng.
+          if (!m.author.bot) return false;
+          if (config.ignoreSelf && client.user && m.author.id === client.user.id) return false;
           let compText = '';
           if (m.components && m.components.length > 0) {
             compText = extractComponentText(m.components);
