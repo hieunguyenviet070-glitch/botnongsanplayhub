@@ -811,6 +811,18 @@ async function formatPlayTogetherNotification(message, targetGuild) {
           }
         }
       }
+
+      // Xương Rồng Saguaro có thể xuất hiện trong embed dưới dạng tên riêng
+      // hoặc chỉ có từ khóa "Saguaro"; luôn ping role cactus đã cấu hình.
+      if (lowerContent.includes('saguaro')) {
+        const saguaroRoleId = emojiConfig.roles && emojiConfig.roles.cactus;
+        if (saguaroRoleId && !saguaroRoleId.includes('ĐIỀN_ID_ROLE_') &&
+            !saguaroRoleId.includes('ĐIỀN_ID_ROLE_CỦA_BẠN_VÀO_ĐÂY')) {
+          addRoleToPing(saguaroRoleId);
+        } else {
+          addRoleToPing('Xương Rồng');
+        }
+      }
     }
     if (defaultRoleName === 'Thời Gian Làm Mới') {
       const refreshNameMap = {
