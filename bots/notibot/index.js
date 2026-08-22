@@ -765,11 +765,32 @@ async function formatPlayTogetherNotification(message, targetGuild) {
         'custard_apple': 'custard_apple',
         'tao duong': 'custard_apple',
         'hoa hồng': 'rose',
-        'rose': 'rose',
-        'hoa hong': 'rose'
+         'rose': 'rose',
+         'hoa hong': 'rose',
+         'xương rồng gai vàng': 'golden_thorn_cactus',
+         'xuong rong gai vang': 'golden_thorn_cactus',
+         'golden thorn cactus': 'golden_thorn_cactus',
+         'gaivang': 'golden_thorn_cactus',
+         'xương rồng lê gai': 'prickly_pear_cactus',
+         'xuong rong le gai': 'prickly_pear_cactus',
+         'prickly pear cactus': 'prickly_pear_cactus',
+         'legai': 'prickly_pear_cactus',
+         'xương rồng cholla': 'cholla_cactus',
+         'xuong rong cholla': 'cholla_cactus',
+         'cholla cactus': 'cholla_cactus',
+         'cholla': 'cholla_cactus'
       };
-      for (const [plantName, cropKey] of Object.entries(plantNameMap)) {
+      const matchedCropKeys = new Set();
+      const plantEntries = Object.entries(plantNameMap)
+        .sort(([a], [b]) => b.length - a.length);
+      for (const [plantName, cropKey] of plantEntries) {
         if (lowerContent.includes(plantName)) {
+          if (cropKey === 'cactus' && matchedCropKeys.has('golden_thorn_cactus') ||
+              cropKey === 'cactus' && matchedCropKeys.has('prickly_pear_cactus') ||
+              cropKey === 'cactus' && matchedCropKeys.has('cholla_cactus')) {
+            continue;
+          }
+          matchedCropKeys.add(cropKey);
           let cropRoleId = null;
           if (emojiConfig.roles && emojiConfig.roles[cropKey]) {
             const val = emojiConfig.roles[cropKey];
@@ -1094,6 +1115,9 @@ async function formatPlayTogetherNotification(message, targetGuild) {
 }
 const roleDefinitions = {
   'cactus': { name: 'Xương Rồng', key: 'cactus' },
+   'golden_thorn_cactus': { name: 'Xương Rồng Gai Vàng', key: 'golden_thorn_cactus' },
+   'prickly_pear_cactus': { name: 'Xương Rồng Lê Gai', key: 'prickly_pear_cactus' },
+   'cholla_cactus': { name: 'Xương Rồng Cholla', key: 'cholla_cactus' },
   'apple': { name: 'Táo', key: 'apple' },
   'grape': { name: 'Nho', key: 'grape' },
   'pumpkin': { name: 'Bí Ngô', key: 'pumpkin' },
@@ -1136,6 +1160,9 @@ const roleDefinitions = {
 const seedOptions = [
   // Emoji đọc từ emojis.json — chỉ cần sửa emojis.json để đổi emoji, không cần sửa file này
   { label: 'Xương Rồng',  value: 'cactus',        emoji: seedEmoji('cactus') },
+   { label: 'Xương Rồng Gai Vàng', value: 'golden_thorn_cactus', emoji: seedEmoji('golden_thorn_cactus') },
+   { label: 'Xương Rồng Lê Gai', value: 'prickly_pear_cactus', emoji: seedEmoji('prickly_pear_cactus') },
+   { label: 'Xương Rồng Cholla', value: 'cholla_cactus', emoji: seedEmoji('cholla_cactus') },
   { label: 'Táo',          value: 'apple',          emoji: seedEmoji('apple') },
   { label: 'Nho',          value: 'grape',          emoji: seedEmoji('grape') },
   { label: 'Bí Ngô',       value: 'pumpkin',        emoji: seedEmoji('pumpkin') },
@@ -1867,7 +1894,13 @@ async function revokeNotifRolesOnLimit(guild, userId) {
     if (exemptRoleIds.length > 0 && member.roles.cache.some(r => exemptRoleIds.includes(r.id))) return;
 
     // Lọc chỉ các role mà member đang có trong danh sách
-    const toRemove = REVOKE_ROLE_IDS.filter(id => member.roles.cache.has(id));
+      const configuredNotificationRoleIds = Object.entries(emojiConfig.roles || {})
+        .filter(([key, value]) => roleDefinitions[key] && value && !key.startsWith('main_'))
+        .map(([, value]) => value);
+      const toRemove = [...new Set([
+        ...REVOKE_ROLE_IDS,
+        ...configuredNotificationRoleIds
+      ])].filter(id => member.roles.cache.has(id));
 
     // Đặt uses về 0 (không để âm)
     await UsageLimit.updateOne(
