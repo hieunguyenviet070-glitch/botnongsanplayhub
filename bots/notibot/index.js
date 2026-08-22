@@ -778,7 +778,10 @@ async function formatPlayTogetherNotification(message, targetGuild) {
          'xương rồng cholla': 'cholla_cactus',
          'xuong rong cholla': 'cholla_cactus',
          'cholla cactus': 'cholla_cactus',
-         'cholla': 'cholla_cactus'
+         'cholla': 'cholla_cactus',
+         'xương rồng saguaro': 'cactus',
+         'xuong rong saguaro': 'cactus',
+         'saguaro': 'cactus'
       };
       const matchedCropKeys = new Set();
       const plantEntries = Object.entries(plantNameMap)
@@ -1159,7 +1162,7 @@ const roleDefinitions = {
 };
 const seedOptions = [
   // Emoji đọc từ emojis.json — chỉ cần sửa emojis.json để đổi emoji, không cần sửa file này
-  { label: 'Xương Rồng',  value: 'cactus',        emoji: seedEmoji('cactus') },
+   { label: 'Xương Rồng Saguaro', value: 'cactus', emoji: seedEmoji('cactus') },
    { label: 'Xương Rồng Gai Vàng', value: 'golden_thorn_cactus', emoji: seedEmoji('golden_thorn_cactus') },
    { label: 'Xương Rồng Lê Gai', value: 'prickly_pear_cactus', emoji: seedEmoji('prickly_pear_cactus') },
    { label: 'Xương Rồng Cholla', value: 'cholla_cactus', emoji: seedEmoji('cholla_cactus') },
