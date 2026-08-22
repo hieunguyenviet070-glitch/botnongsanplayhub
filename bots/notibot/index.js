@@ -720,7 +720,8 @@ async function formatPlayTogetherNotification(message, targetGuild) {
         }
       });
     }
-    if (defaultRoleName === 'Hạt Giống') {
+    if (defaultRoleName === 'Hạt Giống' || lowerContent.includes('saguaro') ||
+        lowerContent.includes('xuong_rong')) {
       const plantNameMap = {
         'anh đào': 'cherry',
         'cherry': 'cherry',
@@ -1129,7 +1130,7 @@ async function formatPlayTogetherNotification(message, targetGuild) {
   };
 }
 const roleDefinitions = {
-  'cactus': { name: 'Xương Rồng', key: 'cactus' },
+  'cactus': { name: 'Xương Rồng Saguaro', key: 'cactus' },
    'golden_thorn_cactus': { name: 'Xương Rồng Gai Vàng', key: 'golden_thorn_cactus' },
    'prickly_pear_cactus': { name: 'Xương Rồng Lê Gai', key: 'prickly_pear_cactus' },
    'cholla_cactus': { name: 'Xương Rồng Cholla', key: 'cholla_cactus' },
@@ -2106,6 +2107,14 @@ botClient.on('interactionCreate', async (interaction) => {
             let role = null;
             if (roleId) {
               role = guild.roles.cache.get(roleId);
+            }
+            if (role && def.key === 'cactus' && role.name !== def.name) {
+              try {
+                await role.setName(def.name, 'Đồng bộ tên role hạt giống Saguaro');
+                hasChanges = true;
+              } catch (err) {
+                log.warn(`Không thể đổi tên role ${role.name} thành ${def.name}: ${err.message}`);
+              }
             }
             if (!role) {
               role = await getOrCreateRole(guild, def.name);
