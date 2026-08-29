@@ -57,3 +57,8 @@ externalPort = 3000
 [[ports]]
 localPort = 8083
 externalPort = 3001
+
+[userenv]
+
+[userenv.shared]
+SERVER_2_SOURCE_CHANNEL_ID = "1441020273305321502"

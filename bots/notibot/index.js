@@ -43,13 +43,16 @@ if (!fs.existsSync(CONFIG_PATH)) {
 let config;
 try {
   config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  if (config.activeSourceServer !== 'Server 2') {
+    config.activeSourceServer = 'Server 1';
+  }
   if (config.channelMappings && Array.isArray(config.channelMappings)) {
     config.channelMappings = config.channelMappings.map(mapping => ({
       sourceChannelId: (mapping.sourceChannelId || '').trim(),
       targetChannelId: (mapping.targetChannelId || '').trim(),
       targetWebhookUrl: (mapping.targetWebhookUrl || '').trim(),
       type: (mapping.type || '').trim(),
-      sourceServerName: (mapping.sourceServerName || '').trim()
+      sourceServerName: (mapping.sourceServerName || 'Server 1').trim()
     })).filter(m => m.sourceChannelId !== '' && m.targetChannelId !== '');
   } else {
     config.channelMappings = [];
@@ -69,6 +72,7 @@ try {
 }
 const discordToken = setup.DISCORD_TOKEN;
 const botToken = setup.BOT_TOKEN;
+const server2SourceChannelId = (setup.SERVER_2_SOURCE_CHANNEL_ID || '').trim();
 if (!discordToken || discordToken === 'YOUR_DISCORD_TOKEN_HERE') {
   log.error('Vui lòng cấu hình Token Discord (Selfbot) trong file setup.js!');
   process.exit(1);
@@ -657,7 +661,7 @@ function getAllMessageText(message) {
   }
   return texts.join('\n');
 }
-async function formatPlayTogetherNotification(message, targetGuild) {
+async function formatPlayTogetherNotification(message, targetGuild, channelTypeOverride = null) {
   const rawContent = getAllMessageText(message);
   const lowerContent = rawContent.toLowerCase();
   if (lowerContent.includes('đã xóa một tin nhắn') || lowerContent.includes('đã chỉnh sửa') || lowerContent.includes('chi đã xóa một tin nhắn')) {
@@ -668,13 +672,13 @@ async function formatPlayTogetherNotification(message, targetGuild) {
   }
   let defaultRoleName = null;
   const channelId = message.channel.id;
-  if (channelId === '1427881650234195988' || lowerContent.includes('hạt giống') || lowerContent.includes('seedshop')) {
+  if (channelTypeOverride === 'seeds' || channelId === '1427881650234195988' || lowerContent.includes('hạt giống') || lowerContent.includes('seedshop')) {
     defaultRoleName = 'Hạt Giống';
-  } else if (channelId === '1428368453760319508' || lowerContent.includes('thời tiết') || lowerContent.includes('weather')) {
+  } else if (channelTypeOverride === 'weather' || channelId === '1428368453760319508' || lowerContent.includes('thời tiết') || lowerContent.includes('weather')) {
     defaultRoleName = 'Thời Tiết';
-  } else if (channelId === '1453016064807010497' || lowerContent.includes('nông cụ') || lowerContent.includes('toolshop')) {
+  } else if (channelTypeOverride === 'tools' || channelId === '1453016064807010497' || lowerContent.includes('nông cụ') || lowerContent.includes('toolshop')) {
     defaultRoleName = 'Nông Cụ';
-  } else if (channelId === '1489537078822834376' || lowerContent.includes('làm mới') || lowerContent.includes('refresh') || lowerContent.includes('đơn hàng') || lowerContent.includes('order')) {
+  } else if (channelTypeOverride === 'refresh' || channelId === '1489537078822834376' || lowerContent.includes('làm mới') || lowerContent.includes('refresh') || lowerContent.includes('đơn hàng') || lowerContent.includes('order')) {
     defaultRoleName = 'Thời Gian Làm Mới';
   }
   const rolesToPing = [];
@@ -998,7 +1002,7 @@ async function formatPlayTogetherNotification(message, targetGuild) {
   }
   const botAvatarUrl = botClient.user ? botClient.user.displayAvatarURL() : null;
   const mapping = config.channelMappings.find(m => m.sourceChannelId === message.channel.id);
-  const channelType = mapping ? mapping.type : null;
+  const channelType = channelTypeOverride || (mapping ? mapping.type : null);
   const shopEmbed = formatShopEmbedIfMatches(rawContent, defaultRoleName, botAvatarUrl, channelType);
   if (shopEmbed) {
     return {
@@ -1226,6 +1230,154 @@ const mainOptions = [
   { label: 'Nông Cụ (Mọi nông cụ)', value: 'main_tool', emoji: '🧰' },
   { label: 'Thời Gian Làm Mới', value: 'main_refresh', emoji: '🕒' }
 ];
+
+const SOURCE_SERVER_1 = 'Server 1';
+const SOURCE_SERVER_2 = 'Server 2';
+const SOURCE_TYPES = new Set(['seeds', 'weather', 'tools', 'refresh']);
+const SOURCE_TYPE_LABELS = {
+  seeds: 'Hạt Giống',
+  weather: 'Thời Tiết',
+  tools: 'Nông Cụ',
+  refresh: 'Thời Gian Làm Mới'
+};
+const SOURCE_TYPE_ROLE_KEYS = {
+  seeds: new Set(seedOptions.map(option => option.value)),
+  weather: new Set(weatherOptions.map(option => option.value)),
+  tools: new Set(toolOptions.map(option => option.value)),
+  refresh: new Set(refreshOptions.map(option => option.value))
+};
+
+function activeSourceServerName() {
+  return config.activeSourceServer === SOURCE_SERVER_2 ? SOURCE_SERVER_2 : SOURCE_SERVER_1;
+}
+
+function saveConfig() {
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+}
+
+function isServerAdministrator(member) {
+  return !!(member && member.permissions && member.permissions.has('ADMINISTRATOR'));
+}
+
+function sourceTypeFromRoleMentions(message) {
+  if (!message.mentions || !message.mentions.roles || message.mentions.roles.size === 0) {
+    return null;
+  }
+  for (const role of message.mentions.roles.values()) {
+    const roleName = role.name.toLowerCase();
+    const configuredKey = Object.keys(emojiConfig.roles || {})
+      .find(key => key.toLowerCase() === roleName);
+    const candidates = configuredKey ? [configuredKey] : [roleName];
+    for (const candidate of candidates) {
+      for (const [type, keys] of Object.entries(SOURCE_TYPE_ROLE_KEYS)) {
+        if (keys.has(candidate)) return type;
+      }
+      if (candidate === 'hạt giống') return 'seeds';
+      if (candidate === 'thời tiết') return 'weather';
+      if (candidate === 'nông cụ') return 'tools';
+      if (candidate === 'thời gian làm mới') return 'refresh';
+    }
+  }
+  return null;
+}
+
+function inferSourceType(message) {
+  const roleType = sourceTypeFromRoleMentions(message);
+  if (roleType) return roleType;
+
+  const content = getAllMessageText(message).toLowerCase();
+  const matches = [
+    ['refresh', ['thời gian làm mới', 'làm mới', 'refresh', 'đơn hàng', 'order', 'cửa hàng nội thất', 'nội thất', 'furniture']],
+    ['weather', ['thời tiết', 'weather', 'trời sáng', 'trời tối', 'ánh trăng', 'moonlight', 'mưa', 'rain', 'bão', 'thunderstorm', 'cực quang', 'aurora', 'gió cát', 'sandstorm', 'sương mù', 'fog', 'sương sớm', 'dew', 'nắng nóng', 'heatwave', 'gió xuân', 'spring breeze', 'sóng điện từ', 'electromagnetic']],
+    ['tools', ['nông cụ', 'toolshop', 'vòi tưới', 'watering']],
+    ['seeds', ['hạt giống', 'seedshop', 'trái cây', 'xương rồng', 'saguaro', 'cactus', 'táo', 'apple', 'nho', 'grape', 'bí ngô', 'pumpkin', 'dưa hấu', 'watermelon', 'dừa', 'coconut', 'xoài', 'mango', 'đậu', 'bean', 'khế', 'starfruit', 'mãng cầu', 'mangcau', 'anh đào', 'cherry', 'cẩm tú cầu', 'hydrangea', 'hoa loa kèn', 'lily', 'hoa hồng', 'rose']]
+  ];
+  for (const [type, keywords] of matches) {
+    if (keywords.some(keyword => content.includes(keyword))) return type;
+  }
+  return null;
+}
+
+function serverOneMappingForType(type) {
+  return config.channelMappings.find(mapping =>
+    (mapping.sourceServerName || SOURCE_SERVER_1) === SOURCE_SERVER_1 &&
+    mapping.type === type
+  );
+}
+
+function resolveActiveSourceMapping(message) {
+  const activeServer = activeSourceServerName();
+  if (activeServer === SOURCE_SERVER_1) {
+    return config.channelMappings.find(mapping =>
+      (mapping.sourceServerName || SOURCE_SERVER_1) === SOURCE_SERVER_1 &&
+      mapping.sourceChannelId === message.channel.id
+    ) || null;
+  }
+
+  if (!server2SourceChannelId || message.channel.id !== server2SourceChannelId) {
+    return null;
+  }
+
+  const type = inferSourceType(message);
+  if (!type || !SOURCE_TYPES.has(type)) {
+    log.warn(`[Server 2] Không xác định được loại thông báo từ tin nhắn ${message.id}; bỏ qua để tránh gửi sai kênh.`);
+    return null;
+  }
+
+  const serverOneMapping = serverOneMappingForType(type);
+  if (!serverOneMapping) {
+    log.warn(`[Server 2] Chưa có kênh đích cho loại ${SOURCE_TYPE_LABELS[type]}; bỏ qua tin nhắn ${message.id}.`);
+    return null;
+  }
+
+  return {
+    ...serverOneMapping,
+    sourceChannelId: server2SourceChannelId,
+    sourceServerName: SOURCE_SERVER_2,
+    type
+  };
+}
+
+async function handleSourceServerCommand(interaction, mode) {
+  if (!isServerAdministrator(interaction.member)) {
+    return interaction.reply({
+      content: '❌ Bạn cần quyền **Quản trị viên** để chuyển chế độ nguồn!',
+      ephemeral: true
+    });
+  }
+
+  if (mode === SOURCE_SERVER_2 && !server2SourceChannelId) {
+    return interaction.reply({
+      content: '❌ Chưa cấu hình `SERVER_2_SOURCE_CHANNEL_ID` trong environment.',
+      ephemeral: true
+    });
+  }
+
+  config.activeSourceServer = mode;
+  try {
+    saveConfig();
+  } catch (err) {
+    log.error(`[${mode}] Không thể lưu chế độ nguồn vào config.json:`, err.message);
+    return interaction.reply({
+      content: '❌ Không thể lưu chế độ nguồn. Vui lòng kiểm tra quyền ghi file.',
+      ephemeral: true
+    });
+  }
+
+  const sourceDescription = mode === SOURCE_SERVER_2
+    ? `Kênh nguồn tổng hợp: <#${server2SourceChannelId}>`
+    : '4 kênh nguồn hiện tại của Server 1';
+  return interaction.reply({
+    content: [
+      `✅ Đã chuyển sang **${mode}**.`,
+      sourceDescription,
+      `Bot chỉ đọc và xử lý tin nhắn từ **${mode}**; nguồn còn lại đang tạm dừng.`,
+      'Chế độ này đã được lưu và sẽ được giữ nguyên sau khi bot restart.'
+    ].join('\n'),
+    ephemeral: true
+  });
+}
+
 function userHasRole(member, roleKey) {
   const def = roleDefinitions[roleKey];
   if (!def) return false;
@@ -1744,6 +1896,14 @@ async function registerSlashCommands(guild) {
         description: 'Mở menu cấu hình nhận thông báo Play Together'
       },
       {
+        name: 'sever1',
+        description: 'Chuyển sang chế độ đọc và xử lý nguồn Server 1'
+      },
+      {
+        name: 'sever2',
+        description: 'Chuyển sang chế độ đọc và xử lý nguồn Server 2'
+      },
+      {
         name: 'creator',
         description: 'Thêm nhà quảng bá với link invite riêng (Admin)',
         options: [{ type: 6, name: 'user', description: 'Người dùng cần thêm làm Creator', required: true }]
@@ -2089,6 +2249,10 @@ botClient.on('interactionCreate', async (interaction) => {
         await handleUsageRoleRemove(interaction, guild);
       } else if (interaction.commandName === 'usage-role-list') {
         await handleUsageRoleList(interaction, guild);
+      } else if (interaction.commandName === 'sever1') {
+        await handleSourceServerCommand(interaction, SOURCE_SERVER_1);
+      } else if (interaction.commandName === 'sever2') {
+        await handleSourceServerCommand(interaction, SOURCE_SERVER_2);
       } else if (interaction.commandName === 'setup') {
         const isServerAdmin = interaction.member && interaction.member.permissions &&
           interaction.member.permissions.has('ADMINISTRATOR');
@@ -2286,9 +2450,21 @@ botClient.on('interactionCreate', async (interaction) => {
 });
 client.on('ready', async () => {
   log.success(`[Selfbot] Đã đăng nhập tài khoản đọc: ${colors.bright}${client.user.tag}${colors.reset} (ID: ${client.user.id})`);
+  log.info(`[Nguồn] Chế độ đang hoạt động: ${activeSourceServerName()}`);
+  if (server2SourceChannelId) {
+    try {
+      const source2Channel = await client.channels.fetch(server2SourceChannelId, { force: true });
+      log.info(`[Nguồn Server 2] Kênh tổng hợp: ${colors.green}#${source2Channel.name}${colors.reset} (${server2SourceChannelId})`);
+    } catch (err) {
+      log.warn(`[Nguồn Server 2] Không thể truy cập kênh ${server2SourceChannelId}: ${err.message}`);
+    }
+  } else {
+    log.warn('[Nguồn Server 2] Chưa cấu hình SERVER_2_SOURCE_CHANNEL_ID.');
+  }
 });
 botClient.on('ready', async () => {
   log.success(`[Bot] Đã đăng nhập tài khoản gửi: ${colors.bright}${botClient.user.tag}${colors.reset} (ID: ${botClient.user.id})`);
+  log.info(`[Nguồn] Chỉ xử lý tin nhắn từ ${activeSourceServerName()}.`);
   log.info('Đang kiểm tra quyền truy cập các kênh đích...');
   for (const mapping of config.channelMappings) {
     if (mapping.targetChannelId) {
@@ -2367,7 +2543,7 @@ async function forwardMessage(message, mapping) {
   }
   const sourceGuildId = message.guild ? message.guild.id : null;
   const targetGuild = await getTargetGuild(mapping, sourceGuildId);
-  const payload = await formatPlayTogetherNotification(message, targetGuild);
+  const payload = await formatPlayTogetherNotification(message, targetGuild, mapping.type);
 
   if (mapping.type === 'refresh' && payload && payload.embeds) {
     payload.embeds = payload.embeds.map(emb => {
@@ -2552,7 +2728,7 @@ botClient.on('guildMemberRemove', async (member) => inviteSystem.handleGuildMemb
 // ─────────────────────────────────────────────────────────────────────────────
 
 client.on('messageCreate', async (message) => {
-  const mapping = config.channelMappings.find(m => m.sourceChannelId === message.channel.id);
+  const mapping = resolveActiveSourceMapping(message);
   if (!mapping) return;
   // Chỉ xử lý tin nhắn do bot khác gửi ở các kênh nguồn.
   // Tin nhắn từ người dùng phải bị bỏ qua hoàn toàn, bất kể ignoreBots.
@@ -2571,11 +2747,20 @@ process.stdin.setEncoding('utf8');
 process.stdin.on('data', async (data) => {
   const command = data.trim().toLowerCase();
   if (command === 'test') {
-    log.info('Đang chạy thử nghiệm chuyển tiếp tin nhắn gần nhất từ các kênh nguồn...');
+    log.info(`Đang chạy thử nghiệm nguồn đang hoạt động: ${activeSourceServerName()}...`);
     let successCount = 0;
-    for (const mapping of config.channelMappings) {
+    const mappingsToTest = activeSourceServerName() === SOURCE_SERVER_1
+      ? config.channelMappings.filter(mapping =>
+          (mapping.sourceServerName || SOURCE_SERVER_1) === SOURCE_SERVER_1
+        )
+      : [{ sourceChannelId: server2SourceChannelId, sourceServerName: SOURCE_SERVER_2 }];
+    for (const mapping of mappingsToTest) {
       try {
-        log.info(`Đang thử nghiệm kênh nguồn: ${mapping.sourceChannelId}`);
+        if (!mapping.sourceChannelId) {
+          log.warn('Chưa cấu hình SERVER_2_SOURCE_CHANNEL_ID; bỏ qua test Server 2.');
+          continue;
+        }
+        log.info(`Đang thử nghiệm kênh nguồn ${mapping.sourceServerName || SOURCE_SERVER_1}: ${mapping.sourceChannelId}`);
         const sourceChannel = await client.channels.fetch(mapping.sourceChannelId, { force: true });
         if (!sourceChannel) {
           log.warn(`Không tìm thấy kênh nguồn ID ${mapping.sourceChannelId} (hoặc tài khoản không có quyền xem).`);
@@ -2597,7 +2782,14 @@ process.stdin.on('data', async (data) => {
           return hasContent || hasEmbeds || hasFiles;
         });
         if (lastMsg) {
-          await forwardMessage(lastMsg, mapping);
+          const activeMapping = activeSourceServerName() === SOURCE_SERVER_2
+            ? resolveActiveSourceMapping(lastMsg)
+            : mapping;
+          if (!activeMapping) {
+            log.warn(`Không xác định được loại thông báo cho tin nhắn gần nhất ở Server 2 (${mapping.sourceChannelId}).`);
+            continue;
+          }
+          await forwardMessage(lastMsg, activeMapping);
           successCount++;
         } else {
           log.warn(`Không tìm thấy tin nhắn hợp lệ gần đây ở kênh #${sourceChannel.name} (ID: ${mapping.sourceChannelId}).`);
@@ -2606,7 +2798,7 @@ process.stdin.on('data', async (data) => {
         log.error(`Lỗi khi test kênh nguồn ID ${mapping.sourceChannelId}:`, err);
       }
     }
-    log.success(`Hoàn tất thử nghiệm! Chuyển tiếp thành công từ ${successCount}/${config.channelMappings.length} kênh nguồn.`);
+    log.success(`Hoàn tất thử nghiệm! Chuyển tiếp thành công ${successCount} kênh nguồn ở chế độ ${activeSourceServerName()}.`);
   }
 });
 client.on('error', (error) => {
