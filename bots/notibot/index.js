@@ -439,8 +439,127 @@ function formatWeatherEmbed(originalEmbed, defaultRoleName, channelType) {
   }
   return null;
 }
-function formatShopEmbedIfMatches(rawText, category, botAvatarUrl, channelType) {
+const SERVER_2_SEED_TARGET_CHANNEL_ID = '1512092814941491313';
+
+function formatVietnameseClock(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(date);
+  const hour = parts.find(part => part.type === 'hour')?.value;
+  const minute = parts.find(part => part.type === 'minute')?.value;
+  return hour && minute ? `${hour}:${minute}` : '00:00';
+}
+
+function normalizeShopMatchText(text) {
+  return String(text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function getConfiguredRoleId(roleKey) {
+  const roleId = emojiConfig.roles && emojiConfig.roles[roleKey];
+  if (!roleId || !/^\d+$/.test(roleId)) return null;
+  return roleId;
+}
+
+function getConfiguredItemEmoji(itemKey) {
+  const configuredEmoji = emojiConfig.emojis && emojiConfig.emojis[itemKey];
+  if (configuredEmoji && !configuredEmoji.includes('ĐIỀN_ID_EMOJI')) {
+    return configuredEmoji;
+  }
+  return getFallbackEmoji(itemKey) || '🌱';
+}
+
+function findServer2SeedShopItems(rawText) {
+  const normalizedText = normalizeShopMatchText(rawText);
+  const seedKeys = SOURCE_TYPE_ROLE_KEYS && SOURCE_TYPE_ROLE_KEYS.seeds
+    ? SOURCE_TYPE_ROLE_KEYS.seeds
+    : new Set();
+  const matchedKeys = new Set();
+
+  Object.values(roleDefinitions)
+    .filter(def => def && def.key && def.name && seedKeys.has(def.key))
+    .sort((a, b) => normalizeShopMatchText(b.name).length - normalizeShopMatchText(a.name).length)
+    .forEach(def => {
+      const roleId = getConfiguredRoleId(def.key);
+      const normalizedName = normalizeShopMatchText(def.name);
+      if (roleId && normalizedName && normalizedText.includes(normalizedName)) {
+        matchedKeys.add(def.key);
+      }
+    });
+
+  return [...matchedKeys].map(key => roleDefinitions[key]);
+}
+
+function extractShopQuantity(rawText) {
+  const quantityMatch = String(rawText || '').match(
+    /(?:số\s*lượng|quantity)\s*[：:]\s*(\d+)/i
+  );
+  return quantityMatch ? quantityMatch[1] : '1';
+}
+
+function extractShopEndTime(rawText, startTimeStr) {
+  const normalizedText = String(rawText || '').replace(/[：﹕]/g, ':');
+  const timePattern = '(\\d{1,2}:\\d{2})';
+  const rangeMatch = normalizedText.match(
+    new RegExp(`${timePattern}\\s*(?:~|～|[-–—]|đến|to)\\s*${timePattern}`, 'i')
+  );
+  if (rangeMatch) {
+    return formatToVietnameseTime(rangeMatch[2]);
+  }
+
+  const labeledEndMatch = normalizedText.match(
+    new RegExp(
+      `(?:kết\\s*thúc|hết|end|expires?|hết\\s*hạn)[^\\d]{0,24}${timePattern}`,
+      'i'
+    )
+  );
+  if (labeledEndMatch) {
+    return formatToVietnameseTime(labeledEndMatch[1]);
+  }
+
+  return getEndTimeStr(startTimeStr, 5);
+}
+
+function formatServer2SeedShopEmbed(rawText, deliveryTime) {
+  const matchedItems = findServer2SeedShopItems(rawText);
+  if (matchedItems.length === 0) return null;
+
+  const startTimeStr = formatVietnameseClock(deliveryTime);
+  const endTimeStr = extractShopEndTime(rawText, startTimeStr);
+  const quantity = extractShopQuantity(rawText);
+  const seedShopEmoji = getConfiguredItemEmoji('npc_seedshop');
+  const itemLines = matchedItems.map(item => {
+    const itemEmoji = getConfiguredItemEmoji(item.key);
+    return `### ${itemEmoji} x${quantity}`;
+  });
+
+  return {
+    description: [
+      `### ${seedShopEmoji} Hạt giống đang được bán`,
+      ...itemLines,
+      `### Thời gian bán | ${startTimeStr} ~ ${endTimeStr}`
+    ].join('\n'),
+    color: 0x2ecc71
+  };
+}
+
+function formatShopEmbedIfMatches(rawText, category, botAvatarUrl, channelType, options = {}) {
   if (!rawText) return null;
+  if (
+    options.sourceServerName === 'Server 2' &&
+    options.targetChannelId === SERVER_2_SEED_TARGET_CHANNEL_ID &&
+    channelType === 'seeds'
+  ) {
+    return formatServer2SeedShopEmbed(rawText, options.deliveryTime || new Date());
+  }
   const cleanRawText = rawText.replace(/<@&?\d+>|<#\d+>/g, '').trim();
   const match = cleanRawText.match(/\[(\d{1,2}:\d{2})\]\s*(.*)$/s);
   if (!match) return null;
@@ -661,7 +780,12 @@ function getAllMessageText(message) {
   }
   return texts.join('\n');
 }
-async function formatPlayTogetherNotification(message, targetGuild, channelTypeOverride = null) {
+async function formatPlayTogetherNotification(
+  message,
+  targetGuild,
+  channelTypeOverride = null,
+  formatOptions = {}
+) {
   const rawContent = getAllMessageText(message);
   const lowerContent = rawContent.toLowerCase();
   if (lowerContent.includes('đã xóa một tin nhắn') || lowerContent.includes('đã chỉnh sửa') || lowerContent.includes('chi đã xóa một tin nhắn')) {
@@ -1003,7 +1127,13 @@ async function formatPlayTogetherNotification(message, targetGuild, channelTypeO
   const botAvatarUrl = botClient.user ? botClient.user.displayAvatarURL() : null;
   const mapping = config.channelMappings.find(m => m.sourceChannelId === message.channel.id);
   const channelType = channelTypeOverride || (mapping ? mapping.type : null);
-  const shopEmbed = formatShopEmbedIfMatches(rawContent, defaultRoleName, botAvatarUrl, channelType);
+  const shopEmbed = formatShopEmbedIfMatches(
+    rawContent,
+    defaultRoleName,
+    botAvatarUrl,
+    channelType,
+    formatOptions
+  );
   if (shopEmbed) {
     return {
       content: rolesToPing.length > 0 ? rolesToPing.join(' ') : null,
@@ -2543,7 +2673,11 @@ async function forwardMessage(message, mapping) {
   }
   const sourceGuildId = message.guild ? message.guild.id : null;
   const targetGuild = await getTargetGuild(mapping, sourceGuildId);
-  const payload = await formatPlayTogetherNotification(message, targetGuild, mapping.type);
+  const payload = await formatPlayTogetherNotification(message, targetGuild, mapping.type, {
+    sourceServerName: mapping.sourceServerName,
+    targetChannelId: mapping.targetChannelId,
+    deliveryTime: new Date()
+  });
 
   if (mapping.type === 'refresh' && payload && payload.embeds) {
     payload.embeds = payload.embeds.map(emb => {
