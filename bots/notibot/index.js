@@ -538,7 +538,7 @@ function formatServer2SeedShopEmbed(rawText, deliveryTime) {
   const seedShopEmoji = getConfiguredItemEmoji('npc_seedshop');
   const itemLines = matchedItems.map(item => {
     const itemEmoji = getConfiguredItemEmoji(item.key);
-    return `### ${itemEmoji} x${quantity}`;
+    return `### ${itemEmoji} ${item.name} x${quantity}`;
   });
 
   return {
