@@ -48,7 +48,8 @@ try {
       sourceChannelId: (mapping.sourceChannelId || '').trim(),
       targetChannelId: (mapping.targetChannelId || '').trim(),
       targetWebhookUrl: (mapping.targetWebhookUrl || '').trim(),
-      type: (mapping.type || '').trim()
+      type: (mapping.type || '').trim(),
+      sourceServerName: (mapping.sourceServerName || '').trim()
     })).filter(m => m.sourceChannelId !== '' && m.targetChannelId !== '');
   } else {
     config.channelMappings = [];
