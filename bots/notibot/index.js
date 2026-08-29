@@ -545,7 +545,7 @@ function formatServer2SeedShopEmbed(rawText, deliveryTime) {
     description: [
       `### ${seedShopEmoji} Hạt giống đang được bán`,
       ...itemLines,
-      `### Thời gian bán | ${startTimeStr} ~ ${endTimeStr}`
+      `**Thời gian bán | ${startTimeStr} ~ ${endTimeStr}**`
     ].join('\n'),
     color: 0x2ecc71
   };
