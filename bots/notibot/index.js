@@ -440,6 +440,8 @@ function formatWeatherEmbed(originalEmbed, defaultRoleName, channelType) {
   return null;
 }
 const SERVER_2_SEED_TARGET_CHANNEL_ID = '1512092814941491313';
+const SERVER_2_REFRESH_TARGET_CHANNEL_ID = '1522391343534440478';
+const SERVER_2_FURNITURE_REFRESH_EMOJI = '<:cuahangnoithat:1543257510398394389>';
 
 function formatVietnameseClock(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -2680,8 +2682,17 @@ async function forwardMessage(message, mapping) {
   });
 
   if (mapping.type === 'refresh' && payload && payload.embeds) {
+    const isServer2FurnitureRefresh =
+      mapping.sourceServerName === 'Server 2' &&
+      mapping.targetChannelId === SERVER_2_REFRESH_TARGET_CHANNEL_ID;
     payload.embeds = payload.embeds.map(emb => {
       let newEmb = { ...emb, color: 0xED4245 };
+      if (
+        isServer2FurnitureRefresh &&
+        (newEmb.title || '').toLowerCase().includes('cửa hàng nội thất đã được làm mới')
+      ) {
+        newEmb.title = `${SERVER_2_FURNITURE_REFRESH_EMOJI} Cửa hàng nội thất đã được làm mới`;
+      }
       // Thêm thumbnail cho embed "Đơn hàng đã được làm mới"
       if ((newEmb.title || '').includes('Đơn hàng đã được làm mới')) {
         newEmb.thumbnail = { url: 'https://media.discordapp.net/stickers/1532096361980494035.webp?size=160&quality=lossless' };
