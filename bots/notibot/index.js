@@ -538,14 +538,14 @@ function formatServer2SeedShopEmbed(rawText, deliveryTime) {
   const seedShopEmoji = getConfiguredItemEmoji('npc_seedshop');
   const itemLines = matchedItems.map(item => {
     const itemEmoji = getConfiguredItemEmoji(item.key);
-    return `**${itemEmoji} ${item.name} x${quantity}**`;
+    return `**${itemEmoji} ${item.name}** x${quantity}`;
   });
 
   return {
     description: [
       `### ${seedShopEmoji} Hạt giống đang được bán`,
       ...itemLines,
-      `-# Thời gian bán | ${startTimeStr} ~ ${endTimeStr}`
+      `### Thời gian bán | ${startTimeStr} ~ ${endTimeStr}`
     ].join('\n'),
     color: 0x2ecc71
   };
