@@ -993,6 +993,10 @@ async function formatPlayTogetherNotification(
         'nông cụ': 'refresh_toolshop',
         'toolshop': 'refresh_toolshop'
       };
+      if (formatOptions.sourceServerName === 'Server 2') {
+        refreshNameMap['công cụ'] = 'refresh_toolshop';
+        refreshNameMap['shop công cụ'] = 'refresh_toolshop';
+      }
       for (const [refName, refKey] of Object.entries(refreshNameMap)) {
         if (lowerContent.includes(refName)) {
           let refRoleId = null;
