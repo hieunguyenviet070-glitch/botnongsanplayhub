@@ -495,6 +495,9 @@ function findServer2SeedShopItems(rawText) {
     ? SOURCE_TYPE_ROLE_KEYS.seeds
     : new Set();
   const matchedKeys = new Set();
+  const server2SeedAliases = {
+    'qua le gai': 'prickly_pear_cactus'
+  };
 
   Object.values(roleDefinitions)
     .filter(def => def && def.key && def.name && seedKeys.has(def.key))
@@ -506,6 +509,12 @@ function findServer2SeedShopItems(rawText) {
         matchedKeys.add(def.key);
       }
     });
+
+  for (const [alias, key] of Object.entries(server2SeedAliases)) {
+    if (seedKeys.has(key) && normalizedText.includes(alias)) {
+      matchedKeys.add(key);
+    }
+  }
 
   return [...matchedKeys].map(key => roleDefinitions[key]);
 }
@@ -922,6 +931,8 @@ async function formatPlayTogetherNotification(
          'gaivang': 'golden_thorn_cactus',
          'xương rồng lê gai': 'prickly_pear_cactus',
          'xuong rong le gai': 'prickly_pear_cactus',
+          'quả lê gai': 'prickly_pear_cactus',
+          'qua le gai': 'prickly_pear_cactus',
          'prickly pear cactus': 'prickly_pear_cactus',
          'legai': 'prickly_pear_cactus',
          'xương rồng cholla': 'cholla_cactus',
@@ -2779,7 +2790,13 @@ async function forwardMessage(message, mapping) {
       }
       if (
         isServer2ToolshopRefresh &&
-        (newEmb.title || '').toLowerCase().includes('cửa hàng nông cụ đã được làm mới')
+        (
+          (newEmb.title || '').toLowerCase().includes('cửa hàng nông cụ đã được làm mới') ||
+          (
+            (newEmb.title || '').toLowerCase().includes('công cụ') &&
+            (newEmb.title || '').toLowerCase().includes('làm mới')
+          )
+        )
       ) {
         newEmb.title = `${SERVER_2_TOOLSHOP_REFRESH_EMOJI} Cửa hàng nông cụ đã được làm mới`;
       }
