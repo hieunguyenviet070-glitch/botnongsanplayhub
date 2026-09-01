@@ -285,11 +285,12 @@ function extractBracketedMessage(text) {
     .filter(Boolean)
     .join('\n');
 }
-function formatWeatherEmbed(originalEmbed, defaultRoleName, channelType) {
+function formatWeatherEmbed(originalEmbed, defaultRoleName, channelType, formatOptions = {}) {
   if (defaultRoleName !== 'Thời Tiết') return null;
   const titleText = originalEmbed.title || '';
   const descText = originalEmbed.description || '';
-  const combined = channelType === 'weather'
+  const isServer2Weather = channelType === 'weather' && formatOptions.sourceServerName === 'Server 2';
+  const combined = isServer2Weather
     ? extractBracketedMessage(`${titleText}\n${descText}`)
     : `${titleText}\n${descText}`;
   const lowerText = combined.toLowerCase();
@@ -799,7 +800,10 @@ async function formatPlayTogetherNotification(
 ) {
   const rawContent = getAllMessageText(message);
   const lowerContent = rawContent.toLowerCase();
-  const weatherContent = channelTypeOverride === 'weather'
+  const isServer2Weather =
+    channelTypeOverride === 'weather' &&
+    formatOptions.sourceServerName === 'Server 2';
+  const weatherContent = isServer2Weather
     ? extractBracketedMessage(rawContent).toLowerCase()
     : lowerContent;
   if (lowerContent.includes('đã xóa một tin nhắn') || lowerContent.includes('đã chỉnh sửa') || lowerContent.includes('chi đã xóa một tin nhắn')) {
@@ -843,7 +847,7 @@ async function formatPlayTogetherNotification(
         }
       }
     };
-    if (defaultRoleName !== 'Thời Tiết' &&
+    if ((!isServer2Weather || defaultRoleName !== 'Thời Tiết') &&
         message.mentions && message.mentions.roles && message.mentions.roles.size > 0) {
       message.mentions.roles.forEach(role => {
         const roleNameLower = role.name.toLowerCase();
@@ -999,6 +1003,7 @@ async function formatPlayTogetherNotification(
       }
     }
     if (defaultRoleName === 'Thời Tiết') {
+      if (isServer2Weather) {
       // Chỉ chọn thời tiết chính, không suy luận thêm từ tên biến thể.
       // Ví dụ: "Mưa đang xuất hiện" có biến thể "Ẩm Ướt", nhưng không được
       // tag thêm Role Sương Mù chỉ vì biến thể này trùng với sương mù.
@@ -1060,6 +1065,114 @@ async function formatPlayTogetherNotification(
           }
         }
       }
+      } else {
+        if (message.mentions && message.mentions.roles && message.mentions.roles.size > 0) {
+          const sourceRoleNameToKey = {
+            'moonlight': 'moonlight',
+            'rain': 'rainy',
+            'thunderstorm': 'thunderstorm',
+            'aurora': 'eclipse',
+            'wind': 'windy',
+            'fog': 'foggy',
+            'sandstorm': 'sandstorm',
+            'heatwave': 'heatwave',
+            'dew': 'mist',
+            'spring breeze': 'spring_wind',
+            'digital': 'electromagnetic'
+          };
+          message.mentions.roles.forEach(role => {
+            const nameLower = role.name.toLowerCase();
+            for (const [sName, weaKey] of Object.entries(sourceRoleNameToKey)) {
+              if (nameLower.includes(sName)) {
+                let weaRoleId = null;
+                if (emojiConfig.roles && emojiConfig.roles[weaKey]) {
+                  const val = emojiConfig.roles[weaKey];
+                  if (val && !val.includes('ĐIỀN_ID_ROLE_') && !val.includes('ĐIỀN_ID_ROLE_CỦA_BẠN_VÀO_ĐÂY')) {
+                    weaRoleId = val;
+                  }
+                }
+                if (weaRoleId) {
+                  addRoleToPing(weaRoleId);
+                } else {
+                  const def = roleDefinitions[weaKey];
+                  if (def && def.name) {
+                    addRoleToPing(def.name);
+                  }
+                }
+              }
+            }
+          });
+        }
+        const weatherNameMap = {
+          'trời sáng': 'normal_day',
+          'sáng': 'normal_day',
+          'normal day': 'normal_day',
+          'ánh trăng': 'moonlight',
+          'moonlight': 'moonlight',
+          'tối': 'normal_night',
+          'trời tối': 'normal_night',
+          'màn đêm': 'normal_night',
+          'trời đêm': 'normal_night',
+          'màn đêm buông xuống': 'normal_night',
+          'normal night': 'normal_night',
+          'mưa': 'rainy',
+          'rain': 'rainy',
+          'rainy': 'rainy',
+          'ẩm ướt': ['rainy', 'foggy'],
+          'bão': 'thunderstorm',
+          'nhiễm điện': 'thunderstorm',
+          'thunderstorm': 'thunderstorm',
+          'cực quang': 'eclipse',
+          'aurora': 'eclipse',
+          'eclipse': 'eclipse',
+          'gió': 'windy',
+          'wind': 'windy',
+          'windy': 'windy',
+          'gió cát': 'sandstorm',
+          'cát': 'sandstorm',
+          'sandstorm': 'sandstorm',
+          'sương mù': 'foggy',
+          'fog': 'foggy',
+          'foggy': 'foggy',
+          'sương sớm': 'mist',
+          'sương': 'mist',
+          'dew': 'mist',
+          'mist': 'mist',
+          'nắng nóng': 'heatwave',
+          'khô': 'heatwave',
+          'heatwave': 'heatwave',
+          'gió xuân': 'spring_wind',
+          'bướm': 'spring_wind',
+          'spring breeze': 'spring_wind',
+          'spring wind': 'spring_wind',
+          'sóng điện từ': 'electromagnetic',
+          'tê điện': 'electromagnetic',
+          'digital': 'electromagnetic',
+          'electromagnetic': 'electromagnetic'
+        };
+        for (const [weaName, weaKeys] of Object.entries(weatherNameMap)) {
+          if (lowerContent.includes(weaName)) {
+            const keys = Array.isArray(weaKeys) ? weaKeys : [weaKeys];
+            for (const weaKey of keys) {
+              let weaRoleId = null;
+              if (emojiConfig.roles && emojiConfig.roles[weaKey]) {
+                const val = emojiConfig.roles[weaKey];
+                if (val && !val.includes('ĐIỀN_ID_ROLE_') && !val.includes('ĐIỀN_ID_ROLE_CỦA_BẠN_VÀO_ĐÂY')) {
+                  weaRoleId = val;
+                }
+              }
+              if (weaRoleId) {
+                addRoleToPing(weaRoleId);
+              } else {
+                const def = roleDefinitions[weaKey];
+                if (def && def.name) {
+                  addRoleToPing(def.name);
+                }
+              }
+            }
+          }
+        }
+      }
     }
     if (defaultRoleName === 'Nông Cụ') {
       const toolNameMap = {
@@ -1113,7 +1226,7 @@ async function formatPlayTogetherNotification(
   if (message.embeds && message.embeds.length > 0) {
     const targetEmbeds = message.embeds.map(originalEmbed => {
       if (defaultRoleName === 'Thời Tiết') {
-        const customWeather = formatWeatherEmbed(originalEmbed, defaultRoleName, channelType);
+         const customWeather = formatWeatherEmbed(originalEmbed, defaultRoleName, channelType, formatOptions);
         if (customWeather) {
           return customWeather;
         }
@@ -1224,7 +1337,7 @@ async function formatPlayTogetherNotification(
     color: embedColor
   };
   if (defaultRoleName === 'Thời Tiết') {
-    const customWeather = formatWeatherEmbed(embed, defaultRoleName, channelType);
+     const customWeather = formatWeatherEmbed(embed, defaultRoleName, channelType, formatOptions);
     if (customWeather) {
       embed = customWeather;
     }
