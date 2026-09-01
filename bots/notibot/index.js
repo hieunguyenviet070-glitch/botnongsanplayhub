@@ -442,6 +442,7 @@ function formatWeatherEmbed(originalEmbed, defaultRoleName, channelType) {
 const SERVER_2_SEED_TARGET_CHANNEL_ID = '1512092814941491313';
 const SERVER_2_REFRESH_TARGET_CHANNEL_ID = '1522391343534440478';
 const SERVER_2_FURNITURE_REFRESH_EMOJI = '<:cuahangnoithat:1543257510398394389>';
+const SERVER_2_TOOLSHOP_REFRESH_EMOJI = '<:Cua_Hang_Nong_Cu:1544281778230136902>';
 
 function formatVietnameseClock(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -2685,6 +2686,9 @@ async function forwardMessage(message, mapping) {
     const isServer2FurnitureRefresh =
       mapping.sourceServerName === 'Server 2' &&
       mapping.targetChannelId === SERVER_2_REFRESH_TARGET_CHANNEL_ID;
+    const isServer2ToolshopRefresh =
+      mapping.sourceServerName === 'Server 2' &&
+      mapping.targetChannelId === SERVER_2_REFRESH_TARGET_CHANNEL_ID;
     payload.embeds = payload.embeds.map(emb => {
       let newEmb = { ...emb, color: 0xED4245 };
       if (
@@ -2692,6 +2696,12 @@ async function forwardMessage(message, mapping) {
         (newEmb.title || '').toLowerCase().includes('cửa hàng nội thất đã được làm mới')
       ) {
         newEmb.title = `${SERVER_2_FURNITURE_REFRESH_EMOJI} Cửa hàng nội thất đã được làm mới`;
+      }
+      if (
+        isServer2ToolshopRefresh &&
+        (newEmb.title || '').toLowerCase().includes('cửa hàng nông cụ đã được làm mới')
+      ) {
+        newEmb.title = `${SERVER_2_TOOLSHOP_REFRESH_EMOJI} Cửa hàng nông cụ đã được làm mới`;
       }
       // Thêm thumbnail cho embed "Đơn hàng đã được làm mới"
       if ((newEmb.title || '').includes('Đơn hàng đã được làm mới')) {
@@ -2711,6 +2721,12 @@ async function forwardMessage(message, mapping) {
         const newDesc = `### ${titleText}\n${currentDesc}`;
         newEmb = { ...newEmb, description: newDesc };
         delete newEmb.title;
+      }
+      if (isServer2ToolshopRefresh && newEmb.description) {
+        newEmb.description = newEmb.description
+          .replace(/^\s*[*_~`-]*\s*Không có mô tả chi tiết\s*[*_~`-]*\s*$/gim, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
       }
       // Hàm chuẩn hoá dòng "Thời gian: HH:mm ~ HH:mm" → "### Thời gian | HH:mm ~ HH:mm"
       // - Xử lý mọi tổ hợp bold/italic marker (**, *, __) bao quanh label hoặc giá trị
