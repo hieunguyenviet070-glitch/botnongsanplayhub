@@ -1,0 +1,92 @@
+
+
+
+
+
+Search for a workflow...
+Learn more about configuring Workflows
+
+
+Thời gian bán | 20:35 ~ 20:40
+
+Free
+3 days ago
+Changing time formatting
+
+Changing time formatting
+Đã hiểu — dòng thời gian cần trở lại dạng chữ đậm thường:
+
+**Thời gian bán | 20:35 ~ 20:40**
+
+Tôi sẽ chỉ đổi định dạng dòng thời gian của Shop Server 2, giữ nguyên mọi phần còn lại.
+
+
+
+Edited index.js
+Định dạng đã được đổi. Tôi sẽ kiểm tra cú pháp và restart workflow để áp dụng ngay.
+
+
+
+2 actions
+Kiểm tra cú pháp đã đạt. Workflow vẫn đang chạy, nhưng tôi sẽ restart một lần để chắc chắn format mới được nạp vào tiến trình hiện tại.
+
+
+Restarted workflow Notibot
+Bot đã restart với format mới. Tôi sẽ xác nhận log khởi động cuối cùng rồi hoàn tất.
+
+
+
+Refreshed logs
+Đã cập nhật dòng thời gian thành:
+
+**Thời gian bán | 20:35 ~ 20:40**
+
+Bot đã restart thành công và hoạt động bình thường:
+
+Discord Bot đăng nhập thành công.
+Selfbot đăng nhập thành công.
+MongoDB kết nối thành công.
+Bot báo trạng thái sẵn sàng.
+Không ảnh hưởng Server 1 hoặc các chức năng khác.
+
+
+Worked for 34 seconds
+
+Checkpoint made
+3 days ago
+tại kênh 1522391343534440478 🏪｜refresh-gian-hàng ### <:cuahangnoithat: 1543257510398394389> Cửa hàng nội thất đã được làm mới đồng bộ emoji cho các embeb sau này Không ảnh hưởng Server 1
+
+Free
+3 days ago
+Updating emoji sync
+
+Updating emoji sync
+Tôi sẽ kiểm tra riêng nhánh refresh và cách bot chuẩn hóa tiêu đề Embed. Mục tiêu là đổi emoji cho kênh đích 1522391343534440478 בלבד, giữ nguyên emoji/logic của Server 1 và các kênh khác.
+
+
+
+4 actions
+Tôi đã xác định emoji hiện tại đang bị cố định trong formatEmbedTitle, nên nếu đổi toàn cục sẽ ảnh hưởng Server 1. Tôi sẽ thêm một lớp đồng bộ riêng ngay trước khi gửi: chỉ khi sourceServerName = Server 2 và kênh đích là 1522391343534440478, tiêu đề “Cửa hàng nội thất đã được làm mới” mới dùng emoji ID 1543257510398394389.
+
+
+
+2 actions
+Nhánh đồng bộ đã được thêm mà không sửa emoji dùng chung hay menu “Tùy chỉnh thông báo”. Tôi sẽ kiểm tra cú pháp, xác nhận đúng ID/kênh trong diff, rồi restart bot.
+
+
+
+4 actions
+Bot đã restart thành công. Tôi sẽ kiểm tra log mới để xác nhận Server 2 và MongoDB vẫn hoạt động bình thường sau khi đồng bộ emoji.
+
+
+
+Refreshed logs
+Đã đồng bộ emoji cho Embed Cửa hàng nội thất tại riêng kênh đích Server 2:
+
+Kênh áp dụng: 1522391343534440478
+Emoji mới:
+<:cuahangnoithat:1543257510398394389>
+
+Embed sau này sẽ hiển thị:
+
+###
