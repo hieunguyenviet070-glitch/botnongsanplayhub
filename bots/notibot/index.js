@@ -1544,28 +1544,33 @@ function resolveActiveSourceMapping(message) {
     ) || null;
   }
 
-  if (!server2SourceChannelId || message.channel.id !== server2SourceChannelId) {
-    return null;
+  if (server2SourceChannelId && message.channel.id === server2SourceChannelId) {
+    const type = inferSourceType(message);
+    if (type !== 'seeds') {
+      return null;
+    }
+
+    const serverOneSeedMapping = serverOneMappingForType('seeds');
+    if (!serverOneSeedMapping) {
+      log.warn(`[Server 2] Chưa có kênh đích cho loại ${SOURCE_TYPE_LABELS.seeds}; bỏ qua tin nhắn ${message.id}.`);
+      return null;
+    }
+
+    return {
+      ...serverOneSeedMapping,
+      sourceChannelId: server2SourceChannelId,
+      sourceServerName: SOURCE_SERVER_2,
+      type: 'seeds'
+    };
   }
 
-  const type = inferSourceType(message);
-  if (!type || !SOURCE_TYPES.has(type)) {
-    log.warn(`[Server 2] Không xác định được loại thông báo từ tin nhắn ${message.id}; bỏ qua để tránh gửi sai kênh.`);
-    return null;
-  }
-
-  const serverOneMapping = serverOneMappingForType(type);
-  if (!serverOneMapping) {
-    log.warn(`[Server 2] Chưa có kênh đích cho loại ${SOURCE_TYPE_LABELS[type]}; bỏ qua tin nhắn ${message.id}.`);
-    return null;
-  }
-
-  return {
-    ...serverOneMapping,
-    sourceChannelId: server2SourceChannelId,
-    sourceServerName: SOURCE_SERVER_2,
-    type
-  };
+  // Khi Server 2 hoạt động, Server 1 vẫn chuyển tiếp các loại khác,
+  // nhưng bỏ qua riêng kênh hạt giống để tránh gửi trùng thông báo.
+  return config.channelMappings.find(mapping =>
+    (mapping.sourceServerName || SOURCE_SERVER_1) === SOURCE_SERVER_1 &&
+    mapping.sourceChannelId === message.channel.id &&
+    mapping.type !== 'seeds'
+  ) || null;
 }
 
 async function handleSourceServerCommand(interaction, mode) {
@@ -1595,13 +1600,15 @@ async function handleSourceServerCommand(interaction, mode) {
   }
 
   const sourceDescription = mode === SOURCE_SERVER_2
-    ? `Kênh nguồn tổng hợp: <#${server2SourceChannelId}>`
+    ? `Server 2 chỉ nhận hạt giống từ: <#${server2SourceChannelId}>\nServer 1 vẫn nhận các thông báo khác, trừ kênh hạt giống.`
     : '4 kênh nguồn hiện tại của Server 1';
   return interaction.reply({
     content: [
       `✅ Đã chuyển sang **${mode}**.`,
       sourceDescription,
-      `Bot chỉ đọc và xử lý tin nhắn từ **${mode}**; nguồn còn lại đang tạm dừng.`,
+      mode === SOURCE_SERVER_2
+        ? 'Server 2 chỉ xử lý hạt giống; Server 1 vẫn xử lý thời tiết, nông cụ và làm mới.'
+        : 'Bot chỉ đọc và xử lý các kênh nguồn của Server 1.',
       'Chế độ này đã được lưu và sẽ được giữ nguyên sau khi bot restart.'
     ].join('\n'),
     ephemeral: true
@@ -2694,7 +2701,11 @@ client.on('ready', async () => {
 });
 botClient.on('ready', async () => {
   log.success(`[Bot] Đã đăng nhập tài khoản gửi: ${colors.bright}${botClient.user.tag}${colors.reset} (ID: ${botClient.user.id})`);
-  log.info(`[Nguồn] Chỉ xử lý tin nhắn từ ${activeSourceServerName()}.`);
+  log.info(
+    activeSourceServerName() === SOURCE_SERVER_2
+      ? '[Nguồn] Server 2 chỉ xử lý hạt giống; Server 1 vẫn xử lý các loại khác, trừ hạt giống.'
+      : '[Nguồn] Đang xử lý các kênh nguồn của Server 1.'
+  );
   log.info('Đang kiểm tra quyền truy cập các kênh đích...');
   for (const mapping of config.channelMappings) {
     if (mapping.targetChannelId) {
@@ -3017,7 +3028,13 @@ process.stdin.on('data', async (data) => {
       ? config.channelMappings.filter(mapping =>
           (mapping.sourceServerName || SOURCE_SERVER_1) === SOURCE_SERVER_1
         )
-      : [{ sourceChannelId: server2SourceChannelId, sourceServerName: SOURCE_SERVER_2 }];
+      : [
+          ...config.channelMappings.filter(mapping =>
+            (mapping.sourceServerName || SOURCE_SERVER_1) === SOURCE_SERVER_1 &&
+            mapping.type !== 'seeds'
+          ),
+          { sourceChannelId: server2SourceChannelId, sourceServerName: SOURCE_SERVER_2, type: 'seeds' }
+        ];
     for (const mapping of mappingsToTest) {
       try {
         if (!mapping.sourceChannelId) {
