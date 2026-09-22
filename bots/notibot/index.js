@@ -1370,6 +1370,7 @@ const roleDefinitions = {
   'apple': { name: 'Táo', key: 'apple' },
   'grape': { name: 'Nho', key: 'grape' },
   'pumpkin': { name: 'Bí Ngô', key: 'pumpkin' },
+  'moon_carrot': { name: 'Cà Rốt Mặt Trăng', key: 'moon_carrot' },
   'watermelon': { name: 'Dưa Hấu', key: 'watermelon' },
   'cherry': { name: 'Anh Đào', key: 'cherry' },
   'papaya': { name: 'Đu Đủ', key: 'papaya' },
@@ -1415,6 +1416,7 @@ const seedOptions = [
   { label: 'Táo',          value: 'apple',          emoji: seedEmoji('apple') },
   { label: 'Nho',          value: 'grape',          emoji: seedEmoji('grape') },
   { label: 'Bí Ngô',       value: 'pumpkin',        emoji: seedEmoji('pumpkin') },
+  { label: 'Cà Rốt Mặt Trăng', value: 'moon_carrot', emoji: seedEmoji('moon_carrot') },
   { label: 'Dưa Hấu',     value: 'watermelon',     emoji: seedEmoji('watermelon') },
   { label: 'Dừa',          value: 'coconut',        emoji: seedEmoji('coconut') },
   { label: 'Xoài',         value: 'mango',          emoji: seedEmoji('mango') },
@@ -1518,7 +1520,7 @@ function inferSourceType(message) {
     ['refresh', ['thời gian làm mới', 'làm mới', 'refresh', 'đơn hàng', 'order', 'cửa hàng nội thất', 'nội thất', 'furniture']],
     ['weather', ['thời tiết', 'weather', 'trời sáng', 'trời tối', 'ánh trăng', 'moonlight', 'mưa', 'rain', 'bão', 'thunderstorm', 'cực quang', 'aurora', 'gió cát', 'sandstorm', 'sương mù', 'fog', 'sương sớm', 'dew', 'nắng nóng', 'heatwave', 'gió xuân', 'spring breeze', 'sóng điện từ', 'electromagnetic']],
     ['tools', ['nông cụ', 'toolshop', 'vòi tưới', 'watering']],
-    ['seeds', ['hạt giống', 'seedshop', 'trái cây', 'xương rồng', 'saguaro', 'cactus', 'táo', 'apple', 'nho', 'grape', 'bí ngô', 'pumpkin', 'dưa hấu', 'watermelon', 'dừa', 'coconut', 'xoài', 'mango', 'đậu', 'bean', 'khế', 'starfruit', 'mãng cầu', 'mangcau', 'anh đào', 'cherry', 'cẩm tú cầu', 'hydrangea', 'hoa loa kèn', 'lily', 'hoa hồng', 'rose']]
+    ['seeds', ['hạt giống', 'seedshop', 'trái cây', 'xương rồng', 'saguaro', 'cactus', 'táo', 'apple', 'nho', 'grape', 'bí ngô', 'pumpkin', 'dưa hấu', 'watermelon', 'dừa', 'coconut', 'xoài', 'mango', 'đậu', 'bean', 'khế', 'starfruit', 'mãng cầu', 'mangcau', 'anh đào', 'cherry', 'cẩm tú cầu', 'hydrangea', 'hoa loa kèn', 'lily', 'hoa hồng', 'rose', 'cà rốt mặt trăng', 'moon carrot', 'carrot']]
   ];
   for (const [type, keywords] of matches) {
     if (keywords.some(keyword => content.includes(keyword))) return type;

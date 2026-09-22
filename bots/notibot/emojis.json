@@ -47,6 +47,7 @@
     "custard_apple": "<a:tao_duong:1532046281914974329>",
     "rose": "<a:hoa_hong:1531990782490181692>",
     "pumpkin": "<a:bi_ngo:1531990996957659166>",
+    "moon_carrot": "<:carot:1551592729803489412>",
     "normal_watering_can": "<a:voi_xanh:1532041549721108630>",
     "advanced_watering_can": "<a:voi_xanh:1531990612734251090>",
     "expert_watering_can": "<a:voi_do:1531990577728720996>"
@@ -93,6 +94,7 @@
     "refresh_toolshop": "1523935625135525962",
     "golden_thorn_cactus": "1540541735363543242",
     "prickly_pear_cactus": "1540541739025039432",
-    "cholla_cactus": "1540541742695059586"
+    "cholla_cactus": "1540541742695059586",
+    "moon_carrot": "1551835238668304434"
   }
 }
